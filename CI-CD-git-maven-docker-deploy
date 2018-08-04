@@ -1,0 +1,27 @@
+node{
+    stage('scm checkout'){
+        git 'https://github.com/durganaidu191604/my-app'
+    }
+	stage('Mvn Package'){
+	def mvnHome = tool name: 'maven-3', type: 'maven'
+	def mvnCMD = "${mvnHome}/bin/mvn"
+	sh "${mvnCMD} clean package"
+	}
+	stage('Build Docker Image'){
+	sh 'docker build -t durganaidu191604/myimage:2.0.0 .'
+	}
+	stage('push Docker Image'){
+	withCredentials([string(credentialsId: 'docker-pwd', variable: 'dockerHubPwd')]) {
+	sh "docker login -u durganaidu191604 -p ${dockerHubPwd}"
+	}
+	
+	sh 'docker push durganaidu191604/myimage:2.0.0'
+	}
+	stage('RunContainer on Dev Server'){
+	def dockerRun = 'docker run -p 8080:8081 -d --name myimage durganaidu191604/myimage:2.0.0'
+	sshagent(['dev-server']) {
+    sh "ssh -o StrictHostKeyChecking=no ec2-user@10.0.2.7 ${dockerRun}"
+	}
+	
+   }
+}
